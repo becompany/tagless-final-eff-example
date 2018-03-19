@@ -26,29 +26,45 @@ object Dsl {
 
   type UserRepositoryState[A] = State[UserRepository, A]
 
-  type _userRepositoryState[R] = UserRepositoryState |= R
-
-  implicit def stateEffInterpreter[R : _userRepositoryState]: Dsl[Eff[R, ?]] =
-    new Dsl[Eff[R, ?]] {
+  implicit def stateInterpreter[R : _userRepositoryState]: Dsl[UserRepositoryState] =
+    new Dsl[UserRepositoryState] {
 
       override def register(email: @@[String, EmailAddress], password: String):
-          Eff[R, Either[RegistrationError, User]] =
+          UserRepositoryState[Either[RegistrationError, User]] =
         for {
-          users <- StateEffect.get[R, UserRepository]
-          result <- Eff.send((
+          users <- State.get[UserRepository]
+          result <- (
             if (users.exists(_.email === email))
               State.pure(RegistrationError("User already exists").asLeft)
             else {
               val user = User(email, password)
               State((users: UserRepository) => (users :+ user, user.asRight))
-            }): UserRepositoryState[Either[RegistrationError, User]])
+            }): UserRepositoryState[Either[RegistrationError, User]]
         } yield result
 
       override def authn(email: @@[String, EmailAddress], password: String):
-          Eff[R, Either[AuthnError, User]] =
-        StateEffect.gets((_: UserRepository)
+          UserRepositoryState[Either[AuthnError, User]] =
+        State.inspect(_
           .find(user => user.email === email && user.password === password)
           .toRight(AuthnError("Authentication failed")))
     }
+
+  private def effInterpreter[R, F[_]](interpreter: Dsl[F])(implicit ev: |=[F, R]): Dsl[Eff[R, ?]] =
+    new Dsl[Eff[R, ?]] {
+
+      override def register(email: @@[String, EmailAddress], password: String):
+          Eff[R, Either[RegistrationError, User]] =
+        Eff.send(interpreter.register(email, password))
+
+      override def authn(email: @@[String, EmailAddress], password: String):
+          Eff[R, Either[AuthnError, User]] =
+        Eff.send(interpreter.authn(email, password))
+
+    }
+
+  type _userRepositoryState[R] = UserRepositoryState |= R
+
+  implicit def effStateInterpreter[R : _userRepositoryState]: Dsl[Eff[R, ?]] =
+    effInterpreter[R, UserRepositoryState](stateInterpreter)
 
 }

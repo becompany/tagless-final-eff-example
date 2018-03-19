@@ -1,9 +1,9 @@
 package ch.becompany.email
 
 import cats.data.Writer
+import cats.~>
 import ch.becompany.shared.domain.EmailAddress
-import org.atnos.eff.{Eff, |=}
-import org.atnos.eff.WriterEffect
+import org.atnos.eff.{Eff, Member, WriterEffect, |=}
 import shapeless.tag.@@
 
 import scala.language.higherKinds
@@ -20,12 +20,21 @@ object Dsl {
 
   type MailQueue[A] = Writer[Email, A]
 
-  type _mailQueue[R] = MailQueue |= R
+  implicit lazy val writerInterpreter: Dsl[MailQueue] =
+    new Dsl[MailQueue] {
+      override def send(to: @@[String, EmailAddress], subject: String, body: String): MailQueue[Unit] =
+        Writer.tell(Email(to, subject, body))
+    }
 
-  implicit def writerEffInterpreter[R : _mailQueue]: Dsl[Eff[R, ?]] =
+  private def effInterpreter[R, F[_]](interpreter: Dsl[F])(implicit ev: |=[F, R]): Dsl[Eff[R, ?]] =
     new Dsl[Eff[R, ?]] {
       override def send(to: @@[String, EmailAddress], subject: String, body: String): Eff[R, Unit] =
-        WriterEffect.tell(Email(to, subject, body))
+        Eff.send(interpreter.send(to, subject, body))
     }
+
+  type _mailQueue[R] = MailQueue |= R
+
+  implicit def effWriterInterpreter[R : _mailQueue]: Dsl[Eff[R, ?]] =
+    effInterpreter[R, MailQueue](writerInterpreter)
 
 }
