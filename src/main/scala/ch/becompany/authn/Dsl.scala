@@ -1,12 +1,11 @@
 package ch.becompany.authn
 
-import cats.Eval
-import cats.data.{State, StateT}
+import cats.data.State
 import cats.implicits._
-import cats.syntax._
 import ch.becompany.authn.domain.{AuthnError, RegistrationError}
-import ch.becompany.shared.domain.{EmailAddress, User}
 import ch.becompany.shapelessext._
+import ch.becompany.shared.domain.{EmailAddress, User}
+import org.atnos.eff.{Eff, StateEffect, |=}
 import shapeless.tag.@@
 
 import scala.language.higherKinds
@@ -25,28 +24,31 @@ object Dsl {
 
   type UserRepository = List[User]
 
-  type UserRepositoryS[A] = State[UserRepository, A]
+  type UserRepositoryState[A] = State[UserRepository, A]
 
-  implicit lazy val StateInterpreter: Dsl[UserRepositoryS] = new Dsl[UserRepositoryS] {
+  type _userRepositoryState[R] = UserRepositoryState |= R
 
-    override def register(email: @@[String, EmailAddress], password: String):
-        UserRepositoryS[Either[RegistrationError, User]] =
-      for {
-        users <- State.get[UserRepository]
-        result <- (
-          if (users.exists(_.email === email))
-            State.pure(RegistrationError("User already exists").asLeft)
-          else {
-            val user = User(email, password)
-            State((users: UserRepository) => (users :+ user, user.asRight))
-          }): UserRepositoryS[Either[RegistrationError, User]]
-      } yield result
+  implicit def stateEffInterpreter[R : _userRepositoryState]: Dsl[Eff[R, ?]] =
+    new Dsl[Eff[R, ?]] {
 
-    override def authn(email: @@[String, EmailAddress], password: String):
-        UserRepositoryS[Either[AuthnError, User]] =
-      State.inspect(_
-        .find(user => user.email === email && user.password === password)
-        .toRight(AuthnError("Authentication failed")))
-  }
+      override def register(email: @@[String, EmailAddress], password: String):
+          Eff[R, Either[RegistrationError, User]] =
+        for {
+          users <- StateEffect.get[R, UserRepository]
+          result <- Eff.send((
+            if (users.exists(_.email === email))
+              State.pure(RegistrationError("User already exists").asLeft)
+            else {
+              val user = User(email, password)
+              State((users: UserRepository) => (users :+ user, user.asRight))
+            }): UserRepositoryState[Either[RegistrationError, User]])
+        } yield result
+
+      override def authn(email: @@[String, EmailAddress], password: String):
+          Eff[R, Either[AuthnError, User]] =
+        StateEffect.gets((_: UserRepository)
+          .find(user => user.email === email && user.password === password)
+          .toRight(AuthnError("Authentication failed")))
+    }
 
 }
