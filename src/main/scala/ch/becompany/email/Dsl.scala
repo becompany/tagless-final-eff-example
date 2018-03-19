@@ -1,9 +1,8 @@
 package ch.becompany.email
 
 import cats.data.Writer
-import cats.~>
 import ch.becompany.shared.domain.EmailAddress
-import org.atnos.eff.{Eff, Member, WriterEffect, |=}
+import org.atnos.eff.{Eff, |=}
 import shapeless.tag.@@
 
 import scala.language.higherKinds

@@ -5,7 +5,7 @@ import cats.implicits._
 import ch.becompany.authn.domain.{AuthnError, RegistrationError}
 import ch.becompany.shapelessext._
 import ch.becompany.shared.domain.{EmailAddress, User}
-import org.atnos.eff.{Eff, StateEffect, |=}
+import org.atnos.eff.{Eff, |=}
 import shapeless.tag.@@
 
 import scala.language.higherKinds
