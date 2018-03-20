@@ -1,3 +1,5 @@
+package ch.becompany
+
 import cats.Monad
 import cats.implicits._
 import ch.becompany.authn.Dsl.UserRepositoryState
