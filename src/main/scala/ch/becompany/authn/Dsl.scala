@@ -29,34 +29,33 @@ object Dsl {
   implicit def stateInterpreter[R : _userRepositoryState]: Dsl[UserRepositoryState] =
     new Dsl[UserRepositoryState] {
 
-      override def register(email: @@[String, EmailAddress], password: String):
+      override def register(email: String @@ EmailAddress, password: String):
           UserRepositoryState[Either[RegistrationError, User]] =
-        for {
-          users <- State.get[UserRepository]
-          result <- (
-            if (users.exists(_.email === email))
-              State.pure(RegistrationError("User already exists").asLeft)
-            else {
-              val user = User(email, password)
-              State((users: UserRepository) => (users :+ user, user.asRight))
-            }): UserRepositoryState[Either[RegistrationError, User]]
-        } yield result
+        State { users =>
+          if (users.exists(_.email === email))
+            (users, RegistrationError("User already exists").asLeft)
+          else {
+            val user = User(email, password)
+            (users :+ user, user.asRight)
+          }
+        }
 
-      override def authn(email: @@[String, EmailAddress], password: String):
+      override def authn(email: String @@ EmailAddress, password: String):
           UserRepositoryState[Either[AuthnError, User]] =
         State.inspect(_
           .find(user => user.email === email && user.password === password)
           .toRight(AuthnError("Authentication failed")))
     }
 
-  private def effInterpreter[R, F[_]](interpreter: Dsl[F])(implicit ev: |=[F, R]): Dsl[Eff[R, ?]] =
+  private def effInterpreter[R, F[_]](interpreter: Dsl[F])
+                                     (implicit evidence: F |= R): Dsl[Eff[R, ?]] =
     new Dsl[Eff[R, ?]] {
 
-      override def register(email: @@[String, EmailAddress], password: String):
+      override def register(email: String @@ EmailAddress, password: String):
           Eff[R, Either[RegistrationError, User]] =
         Eff.send(interpreter.register(email, password))
 
-      override def authn(email: @@[String, EmailAddress], password: String):
+      override def authn(email: String @@ EmailAddress, password: String):
           Eff[R, Either[AuthnError, User]] =
         Eff.send(interpreter.authn(email, password))
 

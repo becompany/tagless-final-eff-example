@@ -25,7 +25,8 @@ object Dsl {
         Writer.tell(Email(to, subject, body))
     }
 
-  private def effInterpreter[R, F[_]](interpreter: Dsl[F])(implicit ev: |=[F, R]): Dsl[Eff[R, ?]] =
+  private def effInterpreter[R, F[_]](interpreter: Dsl[F])
+                                     (implicit evidence: F |= R): Dsl[Eff[R, ?]] =
     new Dsl[Eff[R, ?]] {
       override def send(to: @@[String, EmailAddress], subject: String, body: String): Eff[R, Unit] =
         Eff.send(interpreter.send(to, subject, body))
