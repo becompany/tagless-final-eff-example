@@ -17,7 +17,8 @@ import scala.language.higherKinds
 
 object Main extends App {
 
-  def registerAndLogin[F[_] : Monad](implicit authnDsl: AuthnDsl[F], emailDsl: EmailDsl[F]):
+  def registerAndLogin[F[_] : Monad](implicit authnDsl: AuthnDsl[F],
+                                     emailDsl: EmailDsl[F]):
       F[Either[AuthnError, User]] = {
 
     val email = tag[EmailAddress]("john@doe.com")
