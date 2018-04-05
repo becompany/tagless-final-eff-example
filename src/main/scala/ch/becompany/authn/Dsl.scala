@@ -26,7 +26,7 @@ object Dsl {
 
   type UserRepositoryState[A] = State[UserRepository, A]
 
-  implicit def stateInterpreter[R : _userRepositoryState]: Dsl[UserRepositoryState] =
+  implicit def stateInterpreter: Dsl[UserRepositoryState] =
     new Dsl[UserRepositoryState] {
 
       override def register(email: String @@ EmailAddress, password: String):

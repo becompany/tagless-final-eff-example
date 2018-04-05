@@ -1,6 +1,6 @@
 scalaVersion := "2.12.4"
 
-organization := "net.devkat"
+organization := "ch.becompany"
 
 name := "tagless-final-example"
 
