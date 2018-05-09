@@ -42,7 +42,7 @@ object Main extends App {
 
   val ((authenticated, users), emails) = result
 
-  println("Authentiated: " + authenticated)
+  println("Authenticated: " + authenticated)
   println("Users: " + users)
   println("E-Mails: " + emails)
 }
